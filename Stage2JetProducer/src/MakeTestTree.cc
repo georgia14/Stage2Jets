@@ -53,7 +53,7 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   ht=-10;
 
   edm::Handle<std::vector<reco::LeafCandidate> > jetHandle;
-  iEvent.getByLabel("Stage2JetProducer","l1Stage2Jets", jetHandle);
+  iEvent.getByLabel("Stage2JetProducer","l1Stage2JetsUncalib", jetHandle);
 
   edm::Handle<std::vector<reco::LeafCandidate> > mhtHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2Mht", mhtHandle);

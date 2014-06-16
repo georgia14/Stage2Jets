@@ -50,8 +50,9 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   std::vector< std::vector<int> > ttArray(56, std::vector<int>(72, 0)); //this is just a container for the (E+H) per tower
 
-  std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1Jets(new
-      std::vector<reco::LeafCandidate>());
+  //std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1Jets(new
+  //    std::vector<reco::LeafCandidate>());
+  std::vector<reco::LeafCandidate> uncalibL1Jets;
 
   for(auto j=triggerTowers->begin(); j!=triggerTowers->end(); j++) {
 
@@ -144,7 +145,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
             if(totalenergy > 0.0) {
               //Store as a leaf candidate with charge of 0 and 0 mass
               //Multiply the energy by 0.5 to convert to GeV
-              uncalibL1Jets->push_back(LeafCandidate(0,
+              uncalibL1Jets.push_back(LeafCandidate(0,
                     PtEtaPhiMass(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.)));
             }
           }
@@ -155,30 +156,42 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   }
 
   //Perform global rho subtraction
-  double median_energy = getMedian(*uncalibL1Jets, areas);
+  double median_energy = getMedian(uncalibL1Jets, areas);
 
-  for(unsigned i =0; i<uncalibL1Jets->size(); i++){
-    LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(uncalibL1Jets->at(i).pt()-median_energy*areas[i],uncalibL1Jets->at(i).eta(),uncalibL1Jets->at(i).phi(),0.));
-    uncalibL1Jets->at(i)=newJet;
+  for(unsigned i =0; i<uncalibL1Jets.size(); i++){
+    LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(uncalibL1Jets.at(i).pt()-median_energy*areas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.));
+    uncalibL1Jets.at(i)=newJet;
   }
   
   //sort by highest pT before ending
-  std::sort(uncalibL1Jets->begin(), uncalibL1Jets->end(), sortbypt);  
+  std::sort(uncalibL1Jets.begin(), uncalibL1Jets.end(), sortbypt);  
 
   //Produce the calibrated l1 Jets, only calibrating down to 30 GeV now
-  std::auto_ptr<std::vector<reco::LeafCandidate> > l1Jets(new std::vector<reco::LeafCandidate>());
-  *l1Jets = Stage2Calibrations::calibrateL1Jets(*uncalibL1Jets,30.,9999.);
+  //std::auto_ptr<std::vector<reco::LeafCandidate> > l1Jets(new std::vector<reco::LeafCandidate>());
+  std::vector<reco::LeafCandidate> l1Jets;
+  l1Jets = Stage2Calibrations::calibrateL1Jets(uncalibL1Jets,30.,9999.);
 
   //The thresholds are at least 30GeV due to calibrations
-  std::auto_ptr<std::vector<reco::LeafCandidate> > mht(new std::vector<reco::LeafCandidate>());
-  std::auto_ptr<double> ht(new double);
-  mht->push_back(calculateMHT(*l1Jets,mhtThreshold_));
-  *ht = calculateHT(*l1Jets,htThreshold_);
+  //std::auto_ptr<std::vector<reco::LeafCandidate> > mht(new std::vector<reco::LeafCandidate>());
+  //std::auto_ptr<double> ht(new double);
+  std::vector<reco::LeafCandidate>  mht;
+  mht.push_back(calculateMHT(l1Jets,mhtThreshold_));
+  double ht = calculateHT(l1Jets,htThreshold_);
 
-  iEvent.put(uncalibL1Jets,"l1Stage2JetsUncalib");
-  iEvent.put(l1Jets,"l1Stage2Jets");
-  iEvent.put(mht,"l1Stage2Mht");
-  iEvent.put(ht,"l1Stage2Ht");
+  std::auto_ptr<std::vector<reco::LeafCandidate> > mhtPtr( new std::vector<reco::LeafCandidate>() );
+  std::auto_ptr<std::vector<reco::LeafCandidate> > l1JetsPtr( new std::vector<reco::LeafCandidate>() );
+  std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1JetsPtr( new std::vector<reco::LeafCandidate>() );
+  std::auto_ptr<double> htPtr( new double() );
+
+  *mhtPtr=mht;
+  *l1JetsPtr=l1Jets;
+  *uncalibL1JetsPtr=uncalibL1Jets;
+  *htPtr=ht;
+
+  iEvent.put(uncalibL1JetsPtr,"l1Stage2JetsUncalib");
+  iEvent.put(l1JetsPtr,"l1Stage2Jets");
+  iEvent.put(mhtPtr,"l1Stage2Mht");
+  iEvent.put(htPtr,"l1Stage2Ht");
 
 }
 
