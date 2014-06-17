@@ -3,8 +3,10 @@
 
 #include "DataFormats/Candidate/interface/LeafCandidate.h"
 #include "Stage2Jets/Stage2JetProducer/plugins/TriggerTowerGeometry_new.cc"
+#include "DataFormats/L1Trigger/interface/L1JetParticle.h"
 
 using namespace reco;
+using namespace l1extra;
 
 namespace Stage2Calibrations{
 
@@ -24,7 +26,7 @@ namespace Stage2Calibrations{
   }
 
 
-  std::vector<LeafCandidate> calibrateL1Jets(const std::vector<LeafCandidate>& inJets, double ptMin, double ptMax){
+  std::vector<L1JetParticle> calibrateL1Jets(const std::vector<L1JetParticle>& inJets, double ptMin, double ptMax){
 
     //Look up table for global PUS
     double lut[48]= //Goes down to 8
@@ -42,7 +44,7 @@ namespace Stage2Calibrations{
 
     TriggerTowerGeometry g;
 
-    std::vector<LeafCandidate> outJets;
+    std::vector<L1JetParticle> outJets;
 
     for(auto iJet = inJets.begin(); iJet!=inJets.end(); iJet++){
 
@@ -116,7 +118,7 @@ namespace Stage2Calibrations{
         v[0]=iJet->pt();
         double correction=1.0*calibFit(v,p);
 
-        LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(correction*iJet->pt(),iJet->eta(),iJet->phi(),0.));
+        L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(correction*iJet->pt(),iJet->eta(),iJet->phi(),0.), l1extra::L1JetParticle::JetType::kCentral, 0);
 
         outJets.push_back(newJet);
 

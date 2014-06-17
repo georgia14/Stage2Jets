@@ -12,7 +12,8 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
 #include "DataFormats/Candidate/interface/LeafCandidate.h"
-//#include "DataFormats/L1Trigger/interface/L1EtMissParticle.h"
+#include "DataFormats/L1Trigger/interface/L1JetParticle.h"
+#include "DataFormats/L1Trigger/interface/L1EtMissParticle.h"
 #include "DataFormats/CaloTowers/interface/CaloTower.h"
 #include "DataFormats/CaloTowers/interface/CaloTowerFwd.h"
 #include "SimDataFormats/SLHC/interface/L1CaloTower.h"
@@ -22,6 +23,7 @@
 #include "Stage2Jets/Stage2JetProducer/plugins/CalibrationFunctions.cc"
 
 using namespace reco;
+using namespace l1extra;
 
 class Stage2JetProducer : public edm::EDProducer {
    public:
@@ -30,9 +32,9 @@ class Stage2JetProducer : public edm::EDProducer {
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
       
-      double getMedian(const std::vector<LeafCandidate>& jets, const std::vector<int>& areas);
-      double calculateHT(const std::vector<LeafCandidate>& jets, const double& threshold);
-      LeafCandidate calculateMHT(const std::vector<LeafCandidate>& jets, const double& threshold);
+      double getMedian(const std::vector<L1JetParticle>& jets, const std::vector<int>& areas);
+      double calculateHT(const std::vector<L1JetParticle>& jets, const double& threshold);
+      LeafCandidate calculateMHT(const std::vector<L1JetParticle>& jets, const double& threshold);
 
    private:
       virtual void beginJob() ;

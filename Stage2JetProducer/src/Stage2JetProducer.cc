@@ -14,8 +14,8 @@ namespace{
 Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
 
   //Produces the jets and MET etc
-  produces<std::vector<reco::LeafCandidate> >("l1Stage2Jets");
-  produces<std::vector<reco::LeafCandidate> >("l1Stage2JetsUncalib");
+  produces<std::vector<L1JetParticle> >("l1Stage2Jets");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsUncalib");
   produces<std::vector<reco::LeafCandidate> >("l1Stage2Mht");
   produces<double>("l1Stage2Ht");
 
@@ -52,7 +52,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1Jets(new
   //    std::vector<reco::LeafCandidate>());
-  std::vector<reco::LeafCandidate> uncalibL1Jets;
+  std::vector<L1JetParticle> uncalibL1Jets;
 
   for(auto j=triggerTowers->begin(); j!=triggerTowers->end(); j++) {
 
@@ -146,12 +146,12 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
             if(totalenergy > 0.0) {
               //Store as a leaf candidate with charge of 0 and 0 mass
               //Multiply the energy by 0.5 to convert to GeV
-              uncalibL1Jets.push_back(LeafCandidate(0,
-                    PtEtaPhiMass(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.)));
+              math::PtEtaPhiMLorentzVector tempJet(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
+              uncalibL1Jets.push_back(L1JetParticle(tempJet, L1JetParticle::JetType::kCentral,0));
               jetareas.push_back(jetarea);
               //THEY ARENT THE SAME
               //std::cout << "Eta: " << g.eta(g.old_iEta(i)) << "  Phi: " << g.phi(g.old_iPhi(j)) << std::endl;
-              std::cout << "Eta: " << uncalibL1Jets.back().eta() << "  Phi: " << uncalibL1Jets.back().phi() << std::endl;
+              //std::cout << "Eta: " << uncalibL1Jets.back().eta() << "  Phi: " << uncalibL1Jets.back().phi() << std::endl;
             }
           }
 
@@ -165,7 +165,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   double median_energy = getMedian(uncalibL1Jets, jetareas);
 
   for(unsigned i =0; i<uncalibL1Jets.size(); i++){
-    LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.));
+    L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
     
     //std::cout << "Eta: " << uncalibL1Jets.at(i).eta() << "  Phi: " << uncalibL1Jets.at(i).phi() << std::endl;
 
@@ -181,7 +181,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //Produce the calibrated l1 Jets, only calibrating down to 30 GeV now
   //std::auto_ptr<std::vector<reco::LeafCandidate> > l1Jets(new std::vector<reco::LeafCandidate>());
-  std::vector<reco::LeafCandidate> l1Jets;
+  std::vector<L1JetParticle> l1Jets;
 
   //Calibrations only work down to 30GeV as of now
   l1Jets = Stage2Calibrations::calibrateL1Jets(uncalibL1Jets,30.,9999.);
@@ -194,8 +194,8 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   double ht = calculateHT(l1Jets,htThreshold_);
 
   std::auto_ptr<std::vector<reco::LeafCandidate> > mhtPtr( new std::vector<reco::LeafCandidate>() );
-  std::auto_ptr<std::vector<reco::LeafCandidate> > l1JetsPtr( new std::vector<reco::LeafCandidate>() );
-  std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1JetsPtr( new std::vector<reco::LeafCandidate>() );
+  std::auto_ptr<std::vector<L1JetParticle> > l1JetsPtr( new std::vector<L1JetParticle>() );
+  std::auto_ptr<std::vector<L1JetParticle> > uncalibL1JetsPtr( new std::vector<L1JetParticle>() );
   std::auto_ptr<double> htPtr( new double() );
 
   *mhtPtr=mht;
@@ -236,14 +236,14 @@ void Stage2JetProducer::endLuminosityBlock(edm::LuminosityBlock&,
     edm::EventSetup const&) {
 }
 
-double Stage2JetProducer::getMedian(const std::vector<LeafCandidate>& jets, const std::vector<int>& areas)
+double Stage2JetProducer::getMedian(const std::vector<L1JetParticle>& jets, const std::vector<int>& areas)
 {
   //std::sort(jets.begin(),jets.end(),sortbyrho);
-  std::vector<LeafCandidate> jetSort=jets;
+  std::vector<L1JetParticle> jetSort=jets;
 
   //Scale the pt of all the jets by there areas
   for(unsigned i =0; i< jetSort.size(); i++){
-    LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(jetSort[i].pt()/areas[i],jetSort[i].eta(),jetSort[i].phi(),0.));
+    L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(jetSort[i].pt()/areas[i],jetSort[i].eta(),jetSort[i].phi(),0.), l1extra::L1JetParticle::JetType::kCentral, 0);
     jetSort[i]=newJet;
   }
 
@@ -264,7 +264,7 @@ double Stage2JetProducer::getMedian(const std::vector<LeafCandidate>& jets, cons
 
 }
 
-double Stage2JetProducer::calculateHT(const std::vector<LeafCandidate>& jets, const double& thresh) {
+double Stage2JetProducer::calculateHT(const std::vector<L1JetParticle>& jets, const double& thresh) {
   double ht=0.0;
   for(unsigned int i=0; i< jets.size(); i++) {
     if (jets[i].pt() > thresh)  ht += jets[i].pt();
@@ -272,7 +272,7 @@ double Stage2JetProducer::calculateHT(const std::vector<LeafCandidate>& jets, co
   return ht;
 }
 
-LeafCandidate Stage2JetProducer::calculateMHT(const std::vector<LeafCandidate> & jets, const double& thresh) {
+LeafCandidate Stage2JetProducer::calculateMHT(const std::vector<L1JetParticle> & jets, const double& thresh) {
 
   double mht_x=0.0;
   double mht_y=0.0;
@@ -284,9 +284,9 @@ LeafCandidate Stage2JetProducer::calculateMHT(const std::vector<LeafCandidate> &
     }
   }
 
-  double phi = atan2(mht_y,mht_x);
-  //LeafCandidate mht = LeafCandidate(0,math::XYZTLorentzVector(mht_x,mht_y,0.,sqrt(mht_x*mht_x+mht_y*mht_y)));
-  LeafCandidate mht = LeafCandidate(0,PtEtaPhiMass(sqrt(mht_x*mht_x+mht_y*mht_y),0.,phi,0.));
+  //double phi = atan2(mht_y,mht_x);
+  LeafCandidate mht = LeafCandidate(0,math::XYZTLorentzVector(mht_x,mht_y,0.,sqrt(mht_x*mht_x+mht_y*mht_y)));
+  //LeafCandidate mht = LeafCandidate(0,math::PtEtaPhiMLorentzVector(sqrt(mht_x*mht_x+mht_y*mht_y),0.,phi,0.), l1extra::L1JetParticle::JetType::kCentral, 0);
 
   return mht;
 }

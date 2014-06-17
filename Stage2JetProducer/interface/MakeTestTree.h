@@ -14,6 +14,9 @@
 #include "TTree.h"
 
 #include "DataFormats/Candidate/interface/LeafCandidate.h"
+#include "DataFormats/L1Trigger/interface/L1JetParticle.h"
+
+using namespace l1extra;
 
 class MakeTestTree : public edm::EDAnalyzer {
    public:
