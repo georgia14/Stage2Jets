@@ -64,10 +64,11 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     met_y -= sin(g.phi((*j).iPhi())) * ((*j).E() + (*j).H());
     //so now ttArray is on the scale ieta 0-56, iphi 0-71
   }
-
+ 
 
 
   std::vector<int> areas(jetsize+1,0); //to hold the ring areas (i.e. when we get up against the boundaries)
+  std::vector<int> jetareas; //to hold the ring areas (i.e. when we get up against the boundaries)
 
   for ( int i = 0; i < (int)ttArray.size(); i++) {
     for ( int j = 0; j < (int)ttArray[i].size(); j++) {
@@ -147,6 +148,10 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
               //Multiply the energy by 0.5 to convert to GeV
               uncalibL1Jets.push_back(LeafCandidate(0,
                     PtEtaPhiMass(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.)));
+              jetareas.push_back(jetarea);
+              //THEY ARENT THE SAME
+              //std::cout << "Eta: " << g.eta(g.old_iEta(i)) << "  Phi: " << g.phi(g.old_iPhi(j)) << std::endl;
+              std::cout << "Eta: " << uncalibL1Jets.back().eta() << "  Phi: " << uncalibL1Jets.back().phi() << std::endl;
             }
           }
 
@@ -155,20 +160,30 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     }
   }
 
+  //BUG HERE********************************
   //Perform global rho subtraction
-  double median_energy = getMedian(uncalibL1Jets, areas);
+  double median_energy = getMedian(uncalibL1Jets, jetareas);
 
   for(unsigned i =0; i<uncalibL1Jets.size(); i++){
-    LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(uncalibL1Jets.at(i).pt()-median_energy*areas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.));
+    LeafCandidate newJet= LeafCandidate(0.,PtEtaPhiMass(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.));
+    
+    //std::cout << "Eta: " << uncalibL1Jets.at(i).eta() << "  Phi: " << uncalibL1Jets.at(i).phi() << std::endl;
+
     uncalibL1Jets.at(i)=newJet;
+
+    //THEYRE THE SAME NOW!
+    //std::cout << "Eta: " << uncalibL1Jets.at(i).eta() << "  Phi: " << uncalibL1Jets.at(i).phi() << std::endl;
+
   }
-  
+  // *****************************************
   //sort by highest pT before ending
   std::sort(uncalibL1Jets.begin(), uncalibL1Jets.end(), sortbypt);  
 
   //Produce the calibrated l1 Jets, only calibrating down to 30 GeV now
   //std::auto_ptr<std::vector<reco::LeafCandidate> > l1Jets(new std::vector<reco::LeafCandidate>());
   std::vector<reco::LeafCandidate> l1Jets;
+
+  //Calibrations only work down to 30GeV as of now
   l1Jets = Stage2Calibrations::calibrateL1Jets(uncalibL1Jets,30.,9999.);
 
   //The thresholds are at least 30GeV due to calibrations
