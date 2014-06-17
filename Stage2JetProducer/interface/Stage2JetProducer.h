@@ -34,7 +34,7 @@ class Stage2JetProducer : public edm::EDProducer {
       
       double getMedian(const std::vector<L1JetParticle>& jets, const std::vector<int>& areas);
       double calculateHT(const std::vector<L1JetParticle>& jets, const double& threshold);
-      LeafCandidate calculateMHT(const std::vector<L1JetParticle>& jets, const double& threshold);
+      L1EtMissParticle calculateMHT(const std::vector<L1JetParticle>& jets, const double& threshold);
 
    private:
       virtual void beginJob() ;

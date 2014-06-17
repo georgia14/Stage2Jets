@@ -55,7 +55,7 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   edm::Handle<std::vector<L1JetParticle> > jetHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2Jets", jetHandle);
 
-  edm::Handle<std::vector<reco::LeafCandidate> > mhtHandle;
+  edm::Handle<std::vector<L1EtMissParticle> > mhtHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2Mht", mhtHandle);
 
   edm::Handle<double> htHandle;

@@ -16,7 +16,7 @@ Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
   //Produces the jets and MET etc
   produces<std::vector<L1JetParticle> >("l1Stage2Jets");
   produces<std::vector<L1JetParticle> >("l1Stage2JetsUncalib");
-  produces<std::vector<reco::LeafCandidate> >("l1Stage2Mht");
+  produces<std::vector<L1EtMissParticle> >("l1Stage2Mht");
   produces<double>("l1Stage2Ht");
 
   //Get the configs
@@ -189,11 +189,11 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   //The thresholds are at least 30GeV due to calibrations
   //std::auto_ptr<std::vector<reco::LeafCandidate> > mht(new std::vector<reco::LeafCandidate>());
   //std::auto_ptr<double> ht(new double);
-  std::vector<reco::LeafCandidate>  mht;
+  std::vector<L1EtMissParticle>  mht;
   mht.push_back(calculateMHT(l1Jets,mhtThreshold_));
   double ht = calculateHT(l1Jets,htThreshold_);
 
-  std::auto_ptr<std::vector<reco::LeafCandidate> > mhtPtr( new std::vector<reco::LeafCandidate>() );
+  std::auto_ptr<std::vector<L1EtMissParticle> > mhtPtr( new std::vector<L1EtMissParticle>() );
   std::auto_ptr<std::vector<L1JetParticle> > l1JetsPtr( new std::vector<L1JetParticle>() );
   std::auto_ptr<std::vector<L1JetParticle> > uncalibL1JetsPtr( new std::vector<L1JetParticle>() );
   std::auto_ptr<double> htPtr( new double() );
@@ -272,21 +272,24 @@ double Stage2JetProducer::calculateHT(const std::vector<L1JetParticle>& jets, co
   return ht;
 }
 
-LeafCandidate Stage2JetProducer::calculateMHT(const std::vector<L1JetParticle> & jets, const double& thresh) {
+L1EtMissParticle Stage2JetProducer::calculateMHT(const std::vector<L1JetParticle> & jets, const double& thresh) {
 
   double mht_x=0.0;
   double mht_y=0.0;
+  double ht=0.0;
   for(unsigned int i=0; i< jets.size(); i++) {
     if (jets[i].pt() > thresh)
     {
+      if (jets[i].pt() > thresh)  ht += jets[i].pt();
       mht_x -= cos(jets[i].phi())*jets[i].pt();
       mht_y -= sin(jets[i].phi())*jets[i].pt();
     }
   }
 
-  //double phi = atan2(mht_y,mht_x);
-  LeafCandidate mht = LeafCandidate(0,math::XYZTLorentzVector(mht_x,mht_y,0.,sqrt(mht_x*mht_x+mht_y*mht_y)));
+  double phi = atan2(mht_y,mht_x);
+  //LeafCandidate mht = LeafCandidate(0,math::XYZTLorentzVector(mht_x,mht_y,0.,sqrt(mht_x*mht_x+mht_y*mht_y)));
   //LeafCandidate mht = LeafCandidate(0,math::PtEtaPhiMLorentzVector(sqrt(mht_x*mht_x+mht_y*mht_y),0.,phi,0.), l1extra::L1JetParticle::JetType::kCentral, 0);
+  L1EtMissParticle mht = L1EtMissParticle(math::PtEtaPhiMLorentzVector(sqrt(mht_x*mht_x+mht_y*mht_y),0.,phi,0.),L1EtMissParticle::EtMissType::kMHT,ht);
 
   return mht;
 }

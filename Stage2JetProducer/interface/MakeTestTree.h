@@ -15,6 +15,7 @@
 
 #include "DataFormats/Candidate/interface/LeafCandidate.h"
 #include "DataFormats/L1Trigger/interface/L1JetParticle.h"
+#include "DataFormats/L1Trigger/interface/L1EtMissParticle.h"
 
 using namespace l1extra;
 
