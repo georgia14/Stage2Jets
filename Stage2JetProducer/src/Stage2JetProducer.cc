@@ -14,10 +14,13 @@ namespace{
 Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
 
   //Produces the jets and MET etc
-  produces<std::vector<L1JetParticle> >("l1Stage2Jets");
-  produces<std::vector<L1JetParticle> >("l1Stage2JetsUncalib");
-  produces<std::vector<L1EtMissParticle> >("l1Stage2Mht");
-  produces<double>("l1Stage2Ht");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsNoPUS");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsNoPUSUncalib");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsDonutPUS");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsDonutPUSUncalib");
+  produces<std::vector<L1EtMissParticle> >("l1Stage2NoPUSMht");
+  produces<std::vector<L1EtMissParticle> >("l1Stage2DonutPUSMht");
+  //produces<double>("l1Stage2Ht");
 
   //Get the configs
   towersTag_ = iConfig.getParameter<edm::InputTag>("towerInput");
@@ -159,55 +162,91 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
       }
     }
   }
-
-  //BUG HERE********************************
+/*
   //Perform global rho subtraction
   double median_energy = getMedian(uncalibL1Jets, jetareas);
 
   for(unsigned i =0; i<uncalibL1Jets.size(); i++){
     L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
-    
-    //std::cout << "Eta: " << uncalibL1Jets.at(i).eta() << "  Phi: " << uncalibL1Jets.at(i).phi() << std::endl;
 
     uncalibL1Jets.at(i)=newJet;
 
-    //THEYRE THE SAME NOW!
-    //std::cout << "Eta: " << uncalibL1Jets.at(i).eta() << "  Phi: " << uncalibL1Jets.at(i).phi() << std::endl;
-
   }
-  // *****************************************
+*/
+
+  //---------- Do for unsubtracted jets -----------------------------//
+
   //sort by highest pT before ending
   std::sort(uncalibL1Jets.begin(), uncalibL1Jets.end(), sortbypt);  
 
   //Produce the calibrated l1 Jets, only calibrating down to 30 GeV now
-  //std::auto_ptr<std::vector<reco::LeafCandidate> > l1Jets(new std::vector<reco::LeafCandidate>());
   std::vector<L1JetParticle> l1Jets;
 
   //Calibrations only work down to 30GeV as of now
-  l1Jets = Stage2Calibrations::calibrateL1Jets(uncalibL1Jets,30.,9999.);
+  l1Jets = Stage2Calibrations::calibrateL1Jets(uncalibL1Jets,"nopus",10.,9999.);
 
-  //The thresholds are at least 30GeV due to calibrations
-  //std::auto_ptr<std::vector<reco::LeafCandidate> > mht(new std::vector<reco::LeafCandidate>());
-  //std::auto_ptr<double> ht(new double);
-  std::vector<L1EtMissParticle>  mht;
-  mht.push_back(calculateMHT(l1Jets,mhtThreshold_));
-  double ht = calculateHT(l1Jets,htThreshold_);
+  //Sort the calibrated jets
+  std::sort(l1Jets.begin(), l1Jets.end(), sortbypt);  
 
-  std::auto_ptr<std::vector<L1EtMissParticle> > mhtPtr( new std::vector<L1EtMissParticle>() );
+  //Put into the event
   std::auto_ptr<std::vector<L1JetParticle> > l1JetsPtr( new std::vector<L1JetParticle>() );
   std::auto_ptr<std::vector<L1JetParticle> > uncalibL1JetsPtr( new std::vector<L1JetParticle>() );
-  std::auto_ptr<double> htPtr( new double() );
-
-  *mhtPtr=mht;
+  
   *l1JetsPtr=l1Jets;
   *uncalibL1JetsPtr=uncalibL1Jets;
-  *htPtr=ht;
 
-  iEvent.put(uncalibL1JetsPtr,"l1Stage2JetsUncalib");
-  iEvent.put(l1JetsPtr,"l1Stage2Jets");
-  iEvent.put(mhtPtr,"l1Stage2Mht");
-  iEvent.put(htPtr,"l1Stage2Ht");
+  iEvent.put(uncalibL1JetsPtr,"l1Stage2JetsNoPUSUncalib");
+  iEvent.put(l1JetsPtr,"l1Stage2JetsNoPUS");
 
+  //----------------------------------------------------------------//
+  //
+  //---------- Do pileup subtraction jets -----------------------------//
+
+  //Apply seed threshold
+  std::vector<L1JetParticle> uncalibChunkyJets = ;
+
+  //Do chunky subtraction
+  
+  //Sort the chunky jets
+  std::sort(uncalibChunkyJets.begin(),uncalibChunkyJets.end(),sortbypt);
+
+  //Calibrate the chunky jets
+  std::vector<L1JetParticle> chunkyJets = Stage2Calibrations::calibrateL1Jets(uncalibChunkyJets,"chunky",10.,9999.);
+
+  //Sort the calibrated jets
+  std::sort(chunkyJets.begin(),chunkyJets.end(),sortbypt);
+
+  //Put into the event
+  *chunkyJetsPtr=chunkyJets;
+  *uncalibChunkyJetsPtr=uncalibChunkyJets;
+
+  iEvent.put(uncalibChunkyJetsPtr,"l1Stage2JetsDonutPUSUncalib");
+  iEvent.put(chunkyJetsPtr,"l1Stage2JetsDonutPUS");
+
+  //----------------------------------------------------------------//
+  //
+  //---------------------Make the Energy sums-------------------------//
+
+  std::auto_ptr<std::vector<L1EtMissParticle> > mhtPtr( new std::vector<L1EtMissParticle>() );
+  std::auto_ptr<std::vector<L1EtMissParticle> > mhtChunkyPtr( new std::vector<L1EtMissParticle>() );
+  std::auto_ptr<double> htPtr( new double() );
+
+  //Vanilla jets
+  std::vector<L1EtMissParticle>  mht;
+  mht.push_back(calculateMHT(l1Jets,mhtThreshold_));
+  //double ht = calculateHT(l1Jets,htThreshold_);
+ 
+  std::vector<L1EtMissParticle>  mhtChunky;
+  mhtChunky.push_back(calculateMHT(chunkyJets,mhtThreshold_));
+
+  *mhtPtr=mht;
+  *mhtChunkyPtr=mhtChunky;
+  //*htPtr=ht;
+
+  iEvent.put(mhtPtr,"l1Stage2NoPUSMht");
+  iEvent.put(mhtChunkyPtr,"l1Stage2DonutPUSMht");
+
+  //----------------------------------------------------------------//
 }
 
 // ------------ method called once each job just before starting event loop  ------------
