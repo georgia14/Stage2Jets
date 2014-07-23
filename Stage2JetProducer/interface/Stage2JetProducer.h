@@ -21,6 +21,7 @@
 
 #include "Stage2Jets/Stage2JetProducer/plugins/TriggerTowerGeometry_new.cc"
 #include "Stage2Jets/Stage2JetProducer/plugins/CalibrationFunctions.cc"
+#include "Stage2Jets/Stage2JetProducer/interface/mask.hh"
 
 using namespace reco;
 using namespace l1extra;
@@ -55,6 +56,7 @@ class Stage2JetProducer : public edm::EDProducer {
 
       double mhtThreshold_;
       double htThreshold_;
+      double jetEtaCut_;
 
 };
 

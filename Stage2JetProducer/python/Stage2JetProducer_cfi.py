@@ -8,6 +8,7 @@ Stage2JetProducer=cms.EDProducer(
     towerInput = cms.InputTag("L1CaloTowerProducer"),
     mhtThreshold = cms.double(30),
     htThreshold = cms.double(30),
+    jetEtaCut = cms.double(3.0),
 
 
     )

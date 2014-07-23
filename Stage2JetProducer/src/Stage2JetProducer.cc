@@ -26,6 +26,7 @@ Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
   towersTag_ = iConfig.getParameter<edm::InputTag>("towerInput");
   mhtThreshold_ = iConfig.getParameter<double>("mhtThreshold");
   htThreshold_ = iConfig.getParameter<double>("htThreshold");
+  jetEtaCut_ = iConfig.getParameter<double>("jetEtaCut");
 
 }
 
@@ -41,138 +42,216 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   iEvent.getByLabel(towersTag_, triggerTowers);
 
   //Maybe make these configurable but not for now
-  int jetsize=5;
-  int vetowindowsize=4;
+  //int jetsize=5;
+  //int vetowindowsize=4;
   int seedthresh1=0;
   int seedthresh2=0;
+  int nstrips=4;
+
 
   //Make these incase you want them in the future
   double ET=0.;
   double met_x=0.;
   double met_y=0.;
 
-  std::vector< std::vector<int> > ttArray(56, std::vector<int>(72, 0)); //this is just a container for the (E+H) per tower
+  std::vector< std::vector<int> > input(56, std::vector<int>(72, 0)); //this is just a container for the (E+H) per tower
 
   //std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1Jets(new
   //    std::vector<reco::LeafCandidate>());
   std::vector<L1JetParticle> uncalibL1Jets;
+  std::vector<L1JetParticle> uncalibChunkyJets;
 
   for(auto j=triggerTowers->begin(); j!=triggerTowers->end(); j++) {
 
     if ( abs((*j).iEta()) > 28 ) { continue; } //i.e. |eta| < 3 only
 
-    ttArray[g.new_iEta((*j).iEta())][g.new_iPhi((*j).iPhi())] = ((*j).E() + (*j).H());
+    input[g.new_iEta((*j).iEta())][g.new_iPhi((*j).iPhi())] = ((*j).E() + (*j).H());
     ET += (*j).E()+(*j).H();
     met_x -= cos(g.phi((*j).iPhi())) * ((*j).E() + (*j).H());
     met_y -= sin(g.phi((*j).iPhi())) * ((*j).E() + (*j).H());
     //so now ttArray is on the scale ieta 0-56, iphi 0-71
   }
- 
 
+  //Put in Mask for chunky donut
+  std::vector<std::vector<int> > mask, mask_donut;
 
-  std::vector<int> areas(jetsize+1,0); //to hold the ring areas (i.e. when we get up against the boundaries)
+  //-------------The Masks------------------//
+
+  mask=mask_square_9by9();
+  mask_donut= mask_chunky_donut_15by15();
+
+  //----------------------------------------//
+
   std::vector<int> jetareas; //to hold the ring areas (i.e. when we get up against the boundaries)
 
-  for ( int i = 0; i < (int)ttArray.size(); i++) {
-    for ( int j = 0; j < (int)ttArray[i].size(); j++) {
-      std::vector<int> jetTower;
-      //std::cout << "new: (" << i << ", " << j << ", " << ttArray[i][j] << ")" << std::endl;
+  TriggerTowerGeometry g;
+  int etasize=(mask.size()-1)/2;
+  int phisize=(mask.at(0).size()-1)/2;
+  int nringsveto =etasize;
+
+  int etasizedonut=(mask_donut.size()-1)/2;
+  int phisizedonut=(mask_donut.at(0).size()-1)/2;
+  int nstripsdonut = nstrips;
+  /////////////////
+  //std::cout << input.size() << ", " << input[0].size() << std::endl;
+  for ( int i = 0; i < (int)input.size(); i++) {
+    for ( int j = 0; j < (int)input[i].size(); j++) {
+      std::vector<uint8_t> jetTower(81,0);
+      //int seedtower = input[i][j];  
+      //std::cout << "new: (" << i << ", " << j << ", " << input[i][j] << ")" << std::endl;
       int numtowersaboveme=0;
       int numtowersabovethresh=0;
-      //int seedtower = ttArray[i][j];  
-      std::vector<int> localsums(jetsize+1,0); //to hold the ring sums (+1 for centre)
-      std::vector<std::pair<int,int>> outerstrips(4,std::make_pair(0,0)); //to hold the energies in the 4 surrounding outer strips (excluding corners)
-      int jetarea = 1;
-      //int pusarea = 0;
-      for(int k=(i-jetsize); k<=(i+jetsize); k++) {
-        for(int l=(j-jetsize); l<=(j+jetsize); l++) {
+
+      std::vector<int> localsums(nringsveto+1,0); //to hold the ring sums (+1 for centre)
+      std::vector<int> localmax(nringsveto+1,0); //to hold the ring sums (+1 for centre)
+      std::vector<double> areas(nringsveto+1,0.); //to hold the ring areas (i.e. when we get up against the boundaries)
+      //std::vector<int> outerstrips(nstripsdonut,0); //to hold the energies in the 4 surrounding outer strips (excluding corners)
+      std::vector<std::pair<int,double>> outerstrips(nstripsdonut,std::make_pair(0,0.)); //to hold the energies in the 4 surrounding outer strips (excluding corners)//AND THEIR AREAS!
+      areas[0]=1;
+      double jetarea = 1;
+      //int pusarea=0;
+      for(int l=(j-phisizedonut); l<=(j+phisizedonut); l++) {
+        for(int k=(i-etasizedonut); k<=(i+etasizedonut); k++) {
           if(k < 0 || k > 55) continue; //i.e. out of bounds of eta<3
           //std::cout << " k = " << k << ", l = " << l << ", i =" << i << ", j = " << j << std::endl;
+          unsigned int dk = k-i+etasizedonut;
+          unsigned int dl = l-j+phisizedonut;
 
+
+          //	       std::cout << dk << std::endl;
+          //	       std::cout << dl << std::endl;
           //make a co-ordinate transform at the phi boundary
           int newl;
           if(l < 0) { newl = l+72; } 
           else if (l > 71) { newl = l-72; } 
           else { newl = l; }
-          if (l != j && k != i)
+
+          //if (l != j && k != i)
+          if(input[k][newl] > seedthresh2) { numtowersabovethresh++; }
+          if(dl < mask_donut.size() && dk < mask_donut.at(0).size())
           {
-            jetTower.push_back(ttArray[k][newl]);
-          }
-          if(ttArray[k][newl] > seedthresh2) { numtowersabovethresh++; }
-
-          //to decide which ring to assign energy to
-          for( int m=0; m<jetsize+1;m++) { //+1 for centre of jet (n steps is n+1 rings!)
-            if((abs(i-k) == m && abs(j-l) <= m) || (abs(i-k) <= m && abs(j-l) == m)) { 
-              //i.e. we are now in ring m
-              if (m <= vetowindowsize) localsums[m] += ttArray[k][newl]; 
-              areas[m]+=1;
-              if(m == jetsize) { //i.e. we are in the outer ring and want to parameterise PU
-                if( (k-i) == m && abs(j-l) <= (m-1) ) { outerstrips[0].first += ttArray[k][newl];outerstrips[0].second+=1;}
-                if( (i-k) == m && abs(j-l) <= (m-1) ) { outerstrips[1].first += ttArray[k][newl];outerstrips[1].second+=1;}
-                if( (l-j) == m && abs(i-k) <= (m-1) ) { outerstrips[2].first += ttArray[k][newl];outerstrips[2].second+=1;}
-                if( (j-l) == m && abs(i-k) <= (m-1) ) { outerstrips[3].first += ttArray[k][newl];outerstrips[3].second+=1;}
-              }
-
-              if(m > 0 && m <= vetowindowsize) { //i.e. don't compare the central tower or towers outside vetowindowsize
-                jetarea++;
-                if((k+l) > (i+j) ) { if(ttArray[k][newl] > ttArray[i][j]) { numtowersaboveme++; } }
-                else if( ((k+l) == (i+j)) && (k-i) > (l-j)) { if(ttArray[k][newl] > ttArray[i][j]) { numtowersaboveme++; } } //this line is to break the degeneracy along the diagonal treating top left different to bottom right
-                else { if(ttArray[k][newl] >= ttArray[i][j]) { numtowersaboveme++; } }
-
-              }
-              break; //no point continuining since can only be a member of one ring
+            if(mask_donut[dl][dk] != 0)
+            {
+              double towerArea = g.towerEtaSize(g.old_iEta(k));
+              outerstrips[mask_donut[dl][dk]-1].first+=input[k][newl];
+              outerstrips[mask_donut[dl][dk]-1].second+=towerArea;
+              //	     std::cout << mask_donut[dl][dk];
             }
           }
 
         }
+        //std::cout << std::endl;
       }
+      //std::cout << outerstrips[0].first <<" "<< outerstrips[0].second << std::endl;
+      //std::cout << std::endl;
+      double jetSecMomEta = 0.; 
+      double jetSecMomPhi = 0.; 
+      double jetFirMomEta = 0.; 
+      double jetFirMomPhi = 0.; 
+      double jetCovEtaPhi = 0.;
+      int towIndex = 0;
+      for(int l=(j-phisize); l<=(j+phisize); l++) {
+        for(int k=(i-etasize); k<=(i+etasize); k++) {
+          unsigned int dk = k-i+etasize;
+          unsigned int dl = l-j+phisize;
+          if(k < 0 || k > 55) continue; //i.e. out of bounds of eta<3
+          //std::cout << " k = " << k << ", l = " << l << ", i =" << i << ", j = " << j << std::endl;
+          //	       std::cout << dk << std::endl;
+          //	       std::cout << dl << std::endl;
+          //make a co-ordinate transform at the phi boundary
+          int newl;
+          if(l < 0) { newl = l+72; } 
+          else if (l > 71) { newl = l-72; } 
+          else { newl = l; }
 
-      //now we have a jet candidate centred at i,j, with the ring energies and areas defined
-
-      //now we have the L1 jet candidate:
-      if(numtowersaboveme == 0 )
-      {
-        //std::cout << ttArray[i][j] << "  "  << localsums[0] << std::endl;
-        {
-          if(ttArray[i][j] > seedthresh1) 
+          //if (l != j && k != i)
           {
-
-            double totalenergy=0.0;
-            //std::cout << "iEta: " << g.old_iEta(i) << ", iPhi: " << g.old_iPhi(j) << ", r0: " << localsums[0] <<  ", r1: " << localsums[1] << ", r2: " << localsums[2] << ", r3: " << localsums[3] << ", r4: " << localsums[4] << std::endl;
-            for(int ring=0; ring < (int)localsums.size(); ring++) { totalenergy += localsums[ring]; }
-            //this is with PUS:
-            //for(int ring=0; ring < (int)localsums.size()-1; ring++) { totalenergy += localsums[ring]; }
-            //std::sort(outerstrips.begin(),outerstrips.end());
-            //totalenergy = totalenergy - (3.5 * (outerstrips[1] + outerstrips[2]));
-
-            //this means we have a viable candidate
-            if(totalenergy > 0.0) {
-              //Store as a leaf candidate with charge of 0 and 0 mass
-              //Multiply the energy by 0.5 to convert to GeV
-              math::PtEtaPhiMLorentzVector tempJet(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
-              uncalibL1Jets.push_back(L1JetParticle(tempJet, L1JetParticle::JetType::kCentral,0));
-              jetareas.push_back(jetarea);
-              //THEY ARENT THE SAME
-              //std::cout << "Eta: " << g.eta(g.old_iEta(i)) << "  Phi: " << g.phi(g.old_iPhi(j)) << std::endl;
-              //std::cout << "Eta: " << uncalibL1Jets.back().eta() << "  Phi: " << uncalibL1Jets.back().phi() << std::endl;
+            jetTower.at(towIndex)=(input[k][newl]);
+          }
+          towIndex++;
+          if(input[k][newl] > seedthresh2) { numtowersabovethresh++; }
+          if(dl < mask.size() && dk < mask.at(0).size())
+          {
+            jetSecMomPhi+=((int)dl-phisize)*((int)dl-phisize)*input[k][newl]*input[k][newl];
+            jetSecMomEta+=((int)dk-etasize)*((int)dk-etasize)*input[k][newl]*input[k][newl];
+            jetFirMomPhi+=((int)dl-phisize)*input[k][newl];
+            jetFirMomEta+=((int)dk-etasize)*input[k][newl];
+            jetCovEtaPhi+=((int)dk-etasize)*((int)dl-phisize)*input[k][newl]*input[k][newl];
+            if (mask[dl][dk] == 2){if(input[k][newl]>input[i][j]) {numtowersaboveme++;}}
+            else if (mask[dl][dk] == 1){if(input[k][newl]>=input[i][j]) {numtowersaboveme++;}}
+            /*
+               if((k+l) > (i+j) ) { if(input[k][newl] > input[i][j]) { numtowersaboveme++; } }
+               else if( ((k+l) == (i+j)) && (k-i) > (l-j)) { if(input[k][newl] > input[i][j]) { numtowersaboveme++; } } //this line is to break the degeneracy along the diagonal treating top left different to bottom right
+               else { if(input[k][newl] >= input[i][j]) { numtowersaboveme++; } }
+               */
+            for( int m=0; m<nringsveto+1;m++) { //+1 for centre of jet (n steps is n+1 rings!)
+              if((abs(i-k) == m && abs(j-l) <= m) || (abs(i-k) <= m && abs(j-l) == m)) { 
+                //i.e. we are now in ring m
+                if(input[k][newl]>localmax[m]) localmax[m] = input[k][newl];
+                localsums[m] += input[k][newl]; 
+                //double towerArea = g.towerEtaSize(g.old_iEta(k));
+                if (mask[dl][dk] != 0) {areas[m] += 1; jetarea+=1;}
+                break; //no point continuining since can only be a member of one ring
+              }
             }
           }
 
-        } 
+          if (numtowersaboveme > 0) break;
+        }
+        if (numtowersaboveme > 0) break;
       }
+      //now we have a jet candidate centred at i,j, with the ring energies and areas defined
+      //now we have the L1 jet candidate:
+      if(numtowersaboveme == 0 && input[i][j] > seedthresh1) {
+        double totalenergy=0.0;
+        //std::cout << "iEta: " << g.old_iEta(i) << ", iPhi: " << g.old_iPhi(j) << ", r0: " << localsums[0] <<  ", r1: " << localsums[1] << ", r2: " << localsums[2] << ", r3: " << localsums[3] << ", r4: " << localsums[4] << std::endl;
+        for(int ring=0; ring < (int)localsums.size(); ring++) { totalenergy += localsums[ring]; }
+        jetSecMomEta = jetSecMomEta/(totalenergy*totalenergy);
+        jetSecMomPhi = jetSecMomPhi/(totalenergy*totalenergy);
+        jetFirMomEta = jetFirMomEta/(totalenergy);
+        jetFirMomPhi = jetFirMomPhi/(totalenergy);
+        //this is with PUS:
+        if(totalenergy > 0.0 && fabs(g.eta(g.old_iEta(i)))<jetEtaCut_  ) {
+          //L1_jJets.push_back(jJet(totalenergy, g.old_iEta(i), g.old_iPhi(j), localsums,localmax,jetFirMomEta,jetFirMomPhi,jetSecMomEta,jetSecMomPhi,jetCovEtaPhi, areas, outerstrips,jetTower,jetarea));
+
+          math::PtEtaPhiMLorentzVector tempJet(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
+          uncalibL1Jets.push_back(L1JetParticle(tempJet, L1JetParticle::JetType::kCentral,0));
+          jetareas.push_back(jetarea);
+
+          //Apply seed threshold
+          if(localsums[0]>5){
+
+            //Do chunky subtraction
+            std::sort(outerstrips.begin(),outerstrips.end());
+            double chunkyEnergy = totalenergy- 
+              jetarea*(outerstrips[1].first+outerstrips[2].first)/(outerstrips[1].second+outerstrips[2].second);
+
+            if(chunkyEnergy>0.0){
+              math::PtEtaPhiMLorentzVector tempJet2(0.5*chunkyEnergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
+              uncalibChunkyJets.push_back(L1JetParticle(tempJet2, L1JetParticle::JetType::kCentral,0));
+
+            }
+
+          }
+
+        }
+
+      }
+
     }
   }
-/*
+
+  /*
   //Perform global rho subtraction
   double median_energy = getMedian(uncalibL1Jets, jetareas);
 
   for(unsigned i =0; i<uncalibL1Jets.size(); i++){
-    L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
+  L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
 
-    uncalibL1Jets.at(i)=newJet;
+  uncalibL1Jets.at(i)=newJet;
 
   }
-*/
+  */
 
   //---------- Do for unsubtracted jets -----------------------------//
 
@@ -191,7 +270,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   //Put into the event
   std::auto_ptr<std::vector<L1JetParticle> > l1JetsPtr( new std::vector<L1JetParticle>() );
   std::auto_ptr<std::vector<L1JetParticle> > uncalibL1JetsPtr( new std::vector<L1JetParticle>() );
-  
+
   *l1JetsPtr=l1Jets;
   *uncalibL1JetsPtr=uncalibL1Jets;
 
@@ -202,11 +281,6 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   //
   //---------- Do pileup subtraction jets -----------------------------//
 
-  //Apply seed threshold
-  std::vector<L1JetParticle> uncalibChunkyJets = ;
-
-  //Do chunky subtraction
-  
   //Sort the chunky jets
   std::sort(uncalibChunkyJets.begin(),uncalibChunkyJets.end(),sortbypt);
 
@@ -217,6 +291,8 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   std::sort(chunkyJets.begin(),chunkyJets.end(),sortbypt);
 
   //Put into the event
+  std::auto_ptr<std::vector<L1JetParticle> > chunkyJetsPtr( new std::vector<L1JetParticle>() );
+  std::auto_ptr<std::vector<L1JetParticle> > uncalibChunkyJetsPtr( new std::vector<L1JetParticle>() );
   *chunkyJetsPtr=chunkyJets;
   *uncalibChunkyJetsPtr=uncalibChunkyJets;
 
@@ -235,7 +311,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   std::vector<L1EtMissParticle>  mht;
   mht.push_back(calculateMHT(l1Jets,mhtThreshold_));
   //double ht = calculateHT(l1Jets,htThreshold_);
- 
+
   std::vector<L1EtMissParticle>  mhtChunky;
   mhtChunky.push_back(calculateMHT(chunkyJets,mhtThreshold_));
 
