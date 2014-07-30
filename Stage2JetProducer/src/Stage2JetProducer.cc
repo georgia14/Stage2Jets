@@ -82,7 +82,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //----------------------------------------//
 
-  std::vector<int> jetareas; //to hold the ring areas (i.e. when we get up against the boundaries)
+  std::vector<double> jetareas; //to hold the ring areas (i.e. when we get up against the boundaries)
 
   TriggerTowerGeometry g;
   int etasize=(mask.size()-1)/2;
@@ -107,8 +107,10 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
       std::vector<double> areas(nringsveto+1,0.); //to hold the ring areas (i.e. when we get up against the boundaries)
       //std::vector<int> outerstrips(nstripsdonut,0); //to hold the energies in the 4 surrounding outer strips (excluding corners)
       std::vector<std::pair<int,double>> outerstrips(nstripsdonut,std::make_pair(0,0.)); //to hold the energies in the 4 surrounding outer strips (excluding corners)//AND THEIR AREAS!
-      areas[0]=1;
-      double jetarea = 1;
+      //areas[0]=1;
+      areas[0]=g.towerEtaSize(g.old_iEta(i));;
+      //double jetarea = 1;
+      double jetarea = g.towerEtaSize(g.old_iEta(i));;
       //int pusarea=0;
       for(int l=(j-phisizedonut); l<=(j+phisizedonut); l++) {
         for(int k=(i-etasizedonut); k<=(i+etasizedonut); k++) {
@@ -189,8 +191,8 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
                 //i.e. we are now in ring m
                 if(input[k][newl]>localmax[m]) localmax[m] = input[k][newl];
                 localsums[m] += input[k][newl]; 
-                //double towerArea = g.towerEtaSize(g.old_iEta(k));
-                if (mask[dl][dk] != 0) {areas[m] += 1; jetarea+=1;}
+                double towerArea = g.towerEtaSize(g.old_iEta(k));
+                if (mask[dl][dk] != 0) {areas[m] += towerArea; jetarea+=towerArea;}
                 break; //no point continuining since can only be a member of one ring
               }
             }

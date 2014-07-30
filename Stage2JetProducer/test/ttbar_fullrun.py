@@ -11,7 +11,7 @@ process = cms.Process("Demo")
 #process.options   = cms.untracked.PSet( wantSummary = cms.untracked.bool(True) )
 
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(3000) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
                                                                     
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
@@ -23,7 +23,7 @@ process.source = cms.Source("PoolSource",
     #'file:/afs/cern.ch/work/j/jad/public/TriggerTowers_TTbar_13TeV_PU40_50ns_1-10_skimmed_v3.root'    
     #'file:/afs/cern.ch/work/a/aelwood/trigger/jets/jadjet/CMSSW_6_2_0/src/TtBar_BigSkim_12May14.root'
     #'file:/afs/cern.ch/work/a/aelwood/ntuples/trigger/jets/jadjet/TriggerTowers_TTbar_13TeV_PU40_50ns_1-10_skimmed_v3.root'
-    'file:/afs/cern.ch/work/j/jad/public/TriggerTowers_TTbar_13TeV_noPU_skimmed_v2.root'
+'root://eoscms.cern.ch//eos/cms/store/user/aelwood/140725_jJets_ttbar_PU40bx50/L1SkimRun_48_1_Wg8.root'
     #'file:/afs/cern.ch/work/m/mcitron/public/TriggerTowers_NeutrinoGun_13TeV_PU40_50ns_1-10_skimmed_v3.root'
     ),
     #skipEvents=cms.untracked.uint32(54500)
