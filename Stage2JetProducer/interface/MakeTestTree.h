@@ -46,6 +46,12 @@ class MakeTestTree : public edm::EDAnalyzer {
       std::vector<double> *jetUncalibPt;
       std::vector<double> *jetUncalibPhi;
       std::vector<double> *jetUncalibEta;
+      std::vector<double> *jetGlobalPt;
+      std::vector<double> *jetGlobalPhi;
+      std::vector<double> *jetGlobalEta;
+      std::vector<double> *jetGlobalUncalibPt;
+      std::vector<double> *jetGlobalUncalibPhi;
+      std::vector<double> *jetGlobalUncalibEta;
       std::vector<double> *jetNoPusPt;
       std::vector<double> *jetNoPusPhi;
       std::vector<double> *jetNoPusEta;
@@ -55,6 +61,9 @@ class MakeTestTree : public edm::EDAnalyzer {
       double mht;
       double mhtPhi;
       double ht;
+      double mhtGlobal;
+      double mhtPhiGlobal;
+      double htGlobal;
       double mhtNoPus;
       double mhtPhiNoPus;
       double htNoPus;

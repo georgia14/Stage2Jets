@@ -18,8 +18,11 @@ Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
   produces<std::vector<L1JetParticle> >("l1Stage2JetsNoPUSUncalib");
   produces<std::vector<L1JetParticle> >("l1Stage2JetsDonutPUS");
   produces<std::vector<L1JetParticle> >("l1Stage2JetsDonutPUSUncalib");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsGlobalPUS");
+  produces<std::vector<L1JetParticle> >("l1Stage2JetsGlobalPUSUncalib");
   produces<std::vector<L1EtMissParticle> >("l1Stage2NoPUSMht");
   produces<std::vector<L1EtMissParticle> >("l1Stage2DonutPUSMht");
+  produces<std::vector<L1EtMissParticle> >("l1Stage2GlobalPUSMht");
   //produces<double>("l1Stage2Ht");
 
   //Get the configs
@@ -83,6 +86,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   //----------------------------------------//
 
   std::vector<double> jetareas; //to hold the ring areas (i.e. when we get up against the boundaries)
+  std::vector<int> seedValue; //to hold the ring areas (i.e. when we get up against the boundaries)
 
   TriggerTowerGeometry g;
   int etasize=(mask.size()-1)/2;
@@ -219,6 +223,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
           math::PtEtaPhiMLorentzVector tempJet(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
           uncalibL1Jets.push_back(L1JetParticle(tempJet, L1JetParticle::JetType::kCentral,0));
           jetareas.push_back(jetarea);
+          seedValue.push_back(localsums[0]);
 
           //Apply seed threshold
           if(localsums[0]>5){
@@ -243,18 +248,62 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     }
   }
 
-  /*
-  //Perform global rho subtraction
+  //
+  //---------- Do pileup subtraction jets -----------------------------//
+
+  //Do global rho subtraction
+  //
+  std::vector<L1JetParticle> uncalibGlobalJets;
+
   double median_energy = getMedian(uncalibL1Jets, jetareas);
 
   for(unsigned i =0; i<uncalibL1Jets.size(); i++){
-  L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
+    L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
 
-  uncalibL1Jets.at(i)=newJet;
-
+    //Check the seed
+    if(seedValue[i]>5){
+      uncalibGlobalJets.push_back(newJet);
+    }
   }
-  */
 
+  //Sort the global jets
+  std::sort(uncalibGlobalJets.begin(),uncalibGlobalJets.end(),sortbypt);
+
+  //Calibrate the global jets
+  std::vector<L1JetParticle> globalJets = Stage2Calibrations::calibrateL1Jets(uncalibGlobalJets,"global",10.,9999.);
+  std::sort(globalJets.begin(),globalJets.end(),sortbypt);
+
+  //Put into the event
+  std::auto_ptr<std::vector<L1JetParticle> > globalJetsPtr( new std::vector<L1JetParticle>() );
+  std::auto_ptr<std::vector<L1JetParticle> > uncalibGlobalJetsPtr( new std::vector<L1JetParticle>() );
+  *globalJetsPtr=globalJets;
+  *uncalibGlobalJetsPtr=uncalibGlobalJets;
+
+  iEvent.put(uncalibGlobalJetsPtr,"l1Stage2JetsGlobalPUSUncalib");
+  iEvent.put(globalJetsPtr,"l1Stage2JetsGlobalPUS");
+
+  //Do chunky donut subtraction
+  //
+  //Sort the chunky jets
+  std::sort(uncalibChunkyJets.begin(),uncalibChunkyJets.end(),sortbypt);
+
+  //Calibrate the chunky jets
+  std::vector<L1JetParticle> chunkyJets = Stage2Calibrations::calibrateL1Jets(uncalibChunkyJets,"chunky",10.,9999.);
+
+  //Sort the calibrated jets
+  std::sort(chunkyJets.begin(),chunkyJets.end(),sortbypt);
+
+  //Put into the event
+  std::auto_ptr<std::vector<L1JetParticle> > chunkyJetsPtr( new std::vector<L1JetParticle>() );
+  std::auto_ptr<std::vector<L1JetParticle> > uncalibChunkyJetsPtr( new std::vector<L1JetParticle>() );
+  *chunkyJetsPtr=chunkyJets;
+  *uncalibChunkyJetsPtr=uncalibChunkyJets;
+
+  iEvent.put(uncalibChunkyJetsPtr,"l1Stage2JetsDonutPUSUncalib");
+  iEvent.put(chunkyJetsPtr,"l1Stage2JetsDonutPUS");
+
+  //----------------------------------------------------------------//
+  //
   //---------- Do for unsubtracted jets -----------------------------//
 
   //sort by highest pT before ending
@@ -281,32 +330,11 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //----------------------------------------------------------------//
   //
-  //---------- Do pileup subtraction jets -----------------------------//
-
-  //Sort the chunky jets
-  std::sort(uncalibChunkyJets.begin(),uncalibChunkyJets.end(),sortbypt);
-
-  //Calibrate the chunky jets
-  std::vector<L1JetParticle> chunkyJets = Stage2Calibrations::calibrateL1Jets(uncalibChunkyJets,"chunky",10.,9999.);
-
-  //Sort the calibrated jets
-  std::sort(chunkyJets.begin(),chunkyJets.end(),sortbypt);
-
-  //Put into the event
-  std::auto_ptr<std::vector<L1JetParticle> > chunkyJetsPtr( new std::vector<L1JetParticle>() );
-  std::auto_ptr<std::vector<L1JetParticle> > uncalibChunkyJetsPtr( new std::vector<L1JetParticle>() );
-  *chunkyJetsPtr=chunkyJets;
-  *uncalibChunkyJetsPtr=uncalibChunkyJets;
-
-  iEvent.put(uncalibChunkyJetsPtr,"l1Stage2JetsDonutPUSUncalib");
-  iEvent.put(chunkyJetsPtr,"l1Stage2JetsDonutPUS");
-
-  //----------------------------------------------------------------//
-  //
   //---------------------Make the Energy sums-------------------------//
 
   std::auto_ptr<std::vector<L1EtMissParticle> > mhtPtr( new std::vector<L1EtMissParticle>() );
   std::auto_ptr<std::vector<L1EtMissParticle> > mhtChunkyPtr( new std::vector<L1EtMissParticle>() );
+  std::auto_ptr<std::vector<L1EtMissParticle> > mhtGlobalPtr( new std::vector<L1EtMissParticle>() );
   std::auto_ptr<double> htPtr( new double() );
 
   //Vanilla jets
@@ -317,14 +345,20 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   std::vector<L1EtMissParticle>  mhtChunky;
   mhtChunky.push_back(calculateMHT(chunkyJets,mhtThreshold_));
 
+  std::vector<L1EtMissParticle>  mhtGlobal;
+  mhtGlobal.push_back(calculateMHT(globalJets,mhtThreshold_));
+
   *mhtPtr=mht;
   *mhtChunkyPtr=mhtChunky;
+  *mhtGlobalPtr=mhtGlobal;
   //*htPtr=ht;
 
   iEvent.put(mhtPtr,"l1Stage2NoPUSMht");
   iEvent.put(mhtChunkyPtr,"l1Stage2DonutPUSMht");
+  iEvent.put(mhtGlobalPtr,"l1Stage2GlobalPUSMht");
 
   //----------------------------------------------------------------//
+  //
 }
 
 // ------------ method called once each job just before starting event loop  ------------
@@ -353,12 +387,12 @@ void Stage2JetProducer::endLuminosityBlock(edm::LuminosityBlock&,
     edm::EventSetup const&) {
 }
 
-double Stage2JetProducer::getMedian(const std::vector<L1JetParticle>& jets, const std::vector<int>& areas)
+double Stage2JetProducer::getMedian(const std::vector<L1JetParticle>& jets, const std::vector<double>& areas)
 {
   //std::sort(jets.begin(),jets.end(),sortbyrho);
   std::vector<L1JetParticle> jetSort=jets;
 
-  //Scale the pt of all the jets by there areas
+  //Scale the pt of all the jets by their areas
   for(unsigned i =0; i< jetSort.size(); i++){
     L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(jetSort[i].pt()/areas[i],jetSort[i].eta(),jetSort[i].phi(),0.), l1extra::L1JetParticle::JetType::kCentral, 0);
     jetSort[i]=newJet;

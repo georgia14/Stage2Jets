@@ -39,6 +39,20 @@ MakeTestTree::MakeTestTree(const edm::ParameterSet& iConfig)
   jetNoPusEta = new std::vector<double>();
   tree->Branch("jetNoPusEta", &jetNoPusEta);
 
+  jetGlobalUncalibPt = new std::vector<double>();
+  tree->Branch("jetGlobalUncalibPt", &jetGlobalUncalibPt);
+  jetGlobalUncalibPhi = new std::vector<double>();
+  tree->Branch("jetGlobalUncalibPhi", &jetGlobalUncalibPhi);
+  jetGlobalUncalibEta = new std::vector<double>();
+  tree->Branch("jetGlobalUncalibEta", &jetGlobalUncalibEta);
+
+  jetGlobalPt = new std::vector<double>();
+  tree->Branch("jetGlobalPt", &jetGlobalPt);
+  jetGlobalPhi = new std::vector<double>();
+  tree->Branch("jetGlobalPhi", &jetGlobalPhi);
+  jetGlobalEta = new std::vector<double>();
+  tree->Branch("jetGlobalEta", &jetGlobalEta);
+
 
   tree->Branch("mht", &mht);
   tree->Branch("mhtPhi", &mhtPhi);
@@ -48,6 +62,9 @@ MakeTestTree::MakeTestTree(const edm::ParameterSet& iConfig)
   tree->Branch("mhtPhiNoPus", &mhtPhiNoPus);
   tree->Branch("htNoPus", &htNoPus);
 
+  tree->Branch("mhtGlobal", &mhtGlobal);
+  tree->Branch("mhtPhiGlobal", &mhtPhiGlobal);
+  tree->Branch("htGlobal", &htGlobal);
 
 }
 
@@ -69,6 +86,12 @@ MakeTestTree::~MakeTestTree()
   delete jetNoPusUncalibPt;
   delete jetNoPusUncalibPhi;
   delete jetNoPusUncalibEta;
+  delete jetGlobalPt;
+  delete jetGlobalPhi;
+  delete jetGlobalEta;
+  delete jetGlobalUncalibPt;
+  delete jetGlobalUncalibPhi;
+  delete jetGlobalUncalibEta;
 }
 
 
@@ -92,6 +115,12 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   jetNoPusUncalibPt->clear();
   jetNoPusUncalibPhi->clear();
   jetNoPusUncalibEta->clear();
+  jetGlobalPt->clear();
+  jetGlobalPhi->clear();
+  jetGlobalEta->clear();
+  jetGlobalUncalibPt->clear();
+  jetGlobalUncalibPhi->clear();
+  jetGlobalUncalibEta->clear();
   run = 0;
   event = 0;
   mht=-10;
@@ -104,6 +133,12 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   edm::Handle<std::vector<L1JetParticle> > jetUncalibHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2JetsDonutPUSUncalib", jetUncalibHandle);
 
+  edm::Handle<std::vector<L1JetParticle> > jetGlobalHandle;
+  iEvent.getByLabel("Stage2JetProducer","l1Stage2JetsGlobalPUS", jetGlobalHandle);
+
+  edm::Handle<std::vector<L1JetParticle> > jetGlobalUncalibHandle;
+  iEvent.getByLabel("Stage2JetProducer","l1Stage2JetsGlobalPUSUncalib", jetGlobalUncalibHandle);
+
   edm::Handle<std::vector<L1JetParticle> > jetNoPusHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2JetsNoPUS", jetNoPusHandle);
 
@@ -115,7 +150,9 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
 
   edm::Handle<std::vector<L1EtMissParticle> > mhtNoPusHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2NoPUSMht", mhtNoPusHandle);
-  
+
+  edm::Handle<std::vector<L1EtMissParticle> > mhtGlobalHandle;
+  iEvent.getByLabel("Stage2JetProducer","l1Stage2GlobalPUSMht", mhtGlobalHandle);
 
   for (unsigned i = 0; i < jetHandle->size(); ++i) {
     L1JetParticle jet = jetHandle->at(i);
@@ -145,6 +182,20 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
     jetNoPusUncalibEta->push_back(jetNoPusUncalib.eta());
   }
 
+  for (unsigned i = 0; i < jetGlobalHandle->size(); ++i) {
+    L1JetParticle jetGlobal = jetGlobalHandle->at(i);
+    jetGlobalPt->push_back(jetGlobal.pt());
+    jetGlobalPhi->push_back(jetGlobal.phi());
+    jetGlobalEta->push_back(jetGlobal.eta());
+  }
+
+  for (unsigned i = 0; i < jetGlobalUncalibHandle->size(); ++i) {
+    L1JetParticle jetGlobalUncalib = jetGlobalUncalibHandle->at(i);
+    jetGlobalUncalibPt->push_back(jetGlobalUncalib.pt());
+    jetGlobalUncalibPhi->push_back(jetGlobalUncalib.phi());
+    jetGlobalUncalibEta->push_back(jetGlobalUncalib.eta());
+  }
+
   mht=mhtHandle->at(0).pt();
   mhtPhi=mhtHandle->at(0).phi();
 
@@ -154,6 +205,11 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   mhtPhiNoPus=mhtNoPusHandle->at(0).phi();
 
   htNoPus=mhtNoPusHandle->at(0).etTotal();
+  
+  mhtGlobal=mhtGlobalHandle->at(0).pt();
+  mhtPhiGlobal=mhtGlobalHandle->at(0).phi();
+
+  htGlobal=mhtGlobalHandle->at(0).etTotal();
 
   tree->Fill();
 }

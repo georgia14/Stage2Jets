@@ -33,7 +33,7 @@ class Stage2JetProducer : public edm::EDProducer {
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
       
-      double getMedian(const std::vector<L1JetParticle>& jets, const std::vector<int>& areas);
+      double getMedian(const std::vector<L1JetParticle>& jets, const std::vector<double>& areas);
       double calculateHT(const std::vector<L1JetParticle>& jets, const double& threshold);
       L1EtMissParticle calculateMHT(const std::vector<L1JetParticle>& jets, const double& threshold);
 
