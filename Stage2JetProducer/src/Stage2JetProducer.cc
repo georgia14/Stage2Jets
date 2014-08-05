@@ -339,14 +339,14 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //Vanilla jets
   std::vector<L1EtMissParticle>  mht;
-  mht.push_back(calculateMHT(l1Jets,mhtThreshold_));
+  mht.push_back(calculateMHT(l1Jets,mhtThreshold_,htThreshold_));
   //double ht = calculateHT(l1Jets,htThreshold_);
 
   std::vector<L1EtMissParticle>  mhtChunky;
-  mhtChunky.push_back(calculateMHT(chunkyJets,mhtThreshold_));
+  mhtChunky.push_back(calculateMHT(chunkyJets,mhtThreshold_,htThreshold_));
 
   std::vector<L1EtMissParticle>  mhtGlobal;
-  mhtGlobal.push_back(calculateMHT(globalJets,mhtThreshold_));
+  mhtGlobal.push_back(calculateMHT(globalJets,mhtThreshold_,htThreshold_));
 
   *mhtPtr=mht;
   *mhtChunkyPtr=mhtChunky;
@@ -423,15 +423,16 @@ double Stage2JetProducer::calculateHT(const std::vector<L1JetParticle>& jets, co
   return ht;
 }
 
-L1EtMissParticle Stage2JetProducer::calculateMHT(const std::vector<L1JetParticle> & jets, const double& thresh) {
+L1EtMissParticle Stage2JetProducer::calculateMHT(const std::vector<L1JetParticle> & jets, const double& mhtThresh, const double& htThresh){
 
   double mht_x=0.0;
   double mht_y=0.0;
   double ht=0.0;
   for(unsigned int i=0; i< jets.size(); i++) {
-    if (jets[i].pt() > thresh)
+
+    if (jets[i].pt() > htThresh)  ht += jets[i].pt();
+    if (jets[i].pt() > mhtThresh)
     {
-      if (jets[i].pt() > thresh)  ht += jets[i].pt();
       mht_x -= cos(jets[i].phi())*jets[i].pt();
       mht_y -= sin(jets[i].phi())*jets[i].pt();
     }
