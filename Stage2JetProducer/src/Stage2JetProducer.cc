@@ -261,7 +261,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(uncalibL1Jets.at(i).pt()-median_energy*jetareas[i],uncalibL1Jets.at(i).eta(),uncalibL1Jets.at(i).phi(),0.), L1JetParticle::JetType::kCentral,0);
 
     //Check the seed
-    if(seedValue[i]>5){
+    if(seedValue[i]>5 && uncalibL1Jets.at(i).pt()-median_energy > 0.){
       uncalibGlobalJets.push_back(newJet);
     }
   }

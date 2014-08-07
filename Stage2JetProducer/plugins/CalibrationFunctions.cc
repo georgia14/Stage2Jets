@@ -95,7 +95,7 @@ namespace Stage2Calibrations{
         double v[1]; //This is the pt value
 
         //Load the lut based on the correct eta bin
-        if(g.iEta(iJet->eta())>=-28 && g.iEta(iJet->eta())<-21){
+        if(g.iEta(iJet->eta())<-21){
           p[0]=lut[0];
           p[1]=lut[1];
           p[2]=lut[2];
@@ -109,14 +109,14 @@ namespace Stage2Calibrations{
           p[3]=lut[9];
           p[4]=lut[10];
           p[5]=lut[11];
-        }else if(g.iEta(iJet->eta())>=-14 && g.iEta(iJet->eta())<7){
+        }else if(g.iEta(iJet->eta())>=-14 && g.iEta(iJet->eta())<-7){
           p[0]=lut[12];
           p[1]=lut[13];
           p[2]=lut[14];
           p[3]=lut[15];
           p[4]=lut[16];
           p[5]=lut[17];
-        }else if(g.iEta(iJet->eta())>=7 && g.iEta(iJet->eta())<0){
+        }else if(g.iEta(iJet->eta())>=-7 && g.iEta(iJet->eta())<0){
           p[0]=lut[18];
           p[1]=lut[19];
           p[2]=lut[20];
@@ -144,7 +144,7 @@ namespace Stage2Calibrations{
           p[3]=lut[39];
           p[4]=lut[40];
           p[5]=lut[41];
-        }else if(g.iEta(iJet->eta())>21 && g.iEta(iJet->eta())<=28){
+        }else if(g.iEta(iJet->eta())>21){
           p[0]=lut[42];
           p[1]=lut[43];
           p[2]=lut[44];
@@ -154,6 +154,7 @@ namespace Stage2Calibrations{
         }
         v[0]=iJet->pt();
         double correction=1.0*calibFit(v,p);
+        //if(type=="nopus") std::cout << correction << std::endl;
 
         L1JetParticle newJet= L1JetParticle(math::PtEtaPhiMLorentzVector(correction*iJet->pt(),iJet->eta(),iJet->phi(),0.), l1extra::L1JetParticle::JetType::kCentral, 0);
 
