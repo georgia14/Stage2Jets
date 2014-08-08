@@ -22,8 +22,16 @@ process.source = cms.Source("PoolSource",
     #'file:/afs/cern.ch/work/j/jad/public/TriggerTowers_TTbar_13TeV_noPU_test2_v3.root'
     #'file:/afs/cern.ch/work/j/jad/public/TriggerTowers_TTbar_13TeV_PU40_50ns_1-10_skimmed_v3.root'    
     #'file:/afs/cern.ch/work/a/aelwood/trigger/jets/jadjet/CMSSW_6_2_0/src/TtBar_BigSkim_12May14.root'
-    #'file:/afs/cern.ch/work/a/aelwood/ntuples/trigger/jets/jadjet/TriggerTowers_TTbar_13TeV_PU40_50ns_1-10_skimmed_v3.root'
+ #'file:/afs/cern.ch/work/a/aelwood/ntuples/trigger/jets/jadjet/TriggerTowers_TTbar_13TeV_PU40_50ns_1-10_skimmed_v3.root'
+
+# '/store/user/aelwood/140725_jJets_ngun_PU40bx50/L1SkimRun_40_1_uha.root'
+
 'root://eoscms.cern.ch//eos/cms/store/user/aelwood/140725_jJets_ttbar_PU40bx50/L1SkimRun_48_1_Wg8.root'
+
+#'file://l1_skim_adam.root'
+
+#'/store/user/aelwood/140801_jJets_ttbar_PU40bx25/L1SkimRun_48_1_pDL.root'
+
     #'file:/afs/cern.ch/work/m/mcitron/public/TriggerTowers_NeutrinoGun_13TeV_PU40_50ns_1-10_skimmed_v3.root'
     ),
     #skipEvents=cms.untracked.uint32(54500)

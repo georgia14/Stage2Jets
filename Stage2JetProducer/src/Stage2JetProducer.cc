@@ -23,6 +23,7 @@ Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
   produces<std::vector<L1EtMissParticle> >("l1Stage2NoPUSMht");
   produces<std::vector<L1EtMissParticle> >("l1Stage2DonutPUSMht");
   produces<std::vector<L1EtMissParticle> >("l1Stage2GlobalPUSMht");
+  produces<std::vector<L1EtMissParticle> >("l1Stage2Met");
   //produces<double>("l1Stage2Ht");
 
   //Get the configs
@@ -333,6 +334,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   //---------------------Make the Energy sums-------------------------//
 
   std::auto_ptr<std::vector<L1EtMissParticle> > mhtPtr( new std::vector<L1EtMissParticle>() );
+  std::auto_ptr<std::vector<L1EtMissParticle> > metPtr( new std::vector<L1EtMissParticle>() );
   std::auto_ptr<std::vector<L1EtMissParticle> > mhtChunkyPtr( new std::vector<L1EtMissParticle>() );
   std::auto_ptr<std::vector<L1EtMissParticle> > mhtGlobalPtr( new std::vector<L1EtMissParticle>() );
   std::auto_ptr<double> htPtr( new double() );
@@ -348,12 +350,19 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
   std::vector<L1EtMissParticle>  mhtGlobal;
   mhtGlobal.push_back(calculateMHT(globalJets,mhtThreshold_,htThreshold_));
 
+  std::vector<L1EtMissParticle> met;
+  met.push_back(
+      L1EtMissParticle(math::PtEtaPhiMLorentzVector(sqrt(met_x*met_x+met_y*met_y),0.,atan2(met_y,met_x),0.),
+        L1EtMissParticle::EtMissType::kMET,ET));
+
   *mhtPtr=mht;
   *mhtChunkyPtr=mhtChunky;
   *mhtGlobalPtr=mhtGlobal;
+  *metPtr=met;
   //*htPtr=ht;
 
   iEvent.put(mhtPtr,"l1Stage2NoPUSMht");
+  iEvent.put(metPtr,"l1Stage2Met");
   iEvent.put(mhtChunkyPtr,"l1Stage2DonutPUSMht");
   iEvent.put(mhtGlobalPtr,"l1Stage2GlobalPUSMht");
 

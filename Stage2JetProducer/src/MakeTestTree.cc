@@ -58,6 +58,10 @@ MakeTestTree::MakeTestTree(const edm::ParameterSet& iConfig)
   tree->Branch("mhtPhi", &mhtPhi);
   tree->Branch("ht", &ht);
 
+  tree->Branch("met", &met);
+  tree->Branch("metPhi", &metPhi);
+  tree->Branch("et", &et);
+
   tree->Branch("mhtNoPus", &mhtNoPus);
   tree->Branch("mhtPhiNoPus", &mhtPhiNoPus);
   tree->Branch("htNoPus", &htNoPus);
@@ -148,6 +152,9 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   edm::Handle<std::vector<L1EtMissParticle> > mhtHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2DonutPUSMht", mhtHandle);
 
+  edm::Handle<std::vector<L1EtMissParticle> > metHandle;
+  iEvent.getByLabel("Stage2JetProducer","l1Stage2Met", metHandle);
+
   edm::Handle<std::vector<L1EtMissParticle> > mhtNoPusHandle;
   iEvent.getByLabel("Stage2JetProducer","l1Stage2NoPUSMht", mhtNoPusHandle);
 
@@ -200,6 +207,11 @@ MakeTestTree::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   mhtPhi=mhtHandle->at(0).phi();
 
   ht=mhtHandle->at(0).etTotal();
+
+  met=metHandle->at(0).pt();
+  metPhi=metHandle->at(0).phi();
+
+  et=metHandle->at(0).etTotal();
 
   mhtNoPus=mhtNoPusHandle->at(0).pt();
   mhtPhiNoPus=mhtNoPusHandle->at(0).phi();

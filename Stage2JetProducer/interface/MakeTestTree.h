@@ -61,6 +61,9 @@ class MakeTestTree : public edm::EDAnalyzer {
       double mht;
       double mhtPhi;
       double ht;
+      double met;
+      double metPhi;
+      double et;
       double mhtGlobal;
       double mhtPhiGlobal;
       double htGlobal;
