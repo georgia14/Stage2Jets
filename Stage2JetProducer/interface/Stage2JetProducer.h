@@ -14,15 +14,19 @@
 #include "DataFormats/Candidate/interface/LeafCandidate.h"
 #include "DataFormats/L1Trigger/interface/L1JetParticle.h"
 #include "DataFormats/L1Trigger/interface/L1EtMissParticle.h"
-#include "DataFormats/CaloTowers/interface/CaloTower.h"
-#include "DataFormats/CaloTowers/interface/CaloTowerFwd.h"
+//#include "DataFormats/CaloTowers/interface/CaloTower.h"
+//#include "DataFormats/CaloTowers/interface/CaloTowerFwd.h"
 #include "SimDataFormats/SLHC/interface/L1CaloTower.h"
 #include "SimDataFormats/SLHC/interface/L1CaloTowerFwd.h"
+
+#include "DataFormats/L1TCalorimeter/interface/CaloTower.h"
+#include "DataFormats/L1TCalorimeter/interface/CaloCluster.h"
 
 #include "Stage2Jets/Stage2JetProducer/plugins/TriggerTowerGeometry_new.cc"
 #include "Stage2Jets/Stage2JetProducer/plugins/CalibrationFunctions.cc"
 #include "Stage2Jets/Stage2JetProducer/interface/mask.hh"
 
+using namespace l1t;
 using namespace reco;
 using namespace l1extra;
 
@@ -47,12 +51,12 @@ class Stage2JetProducer : public edm::EDProducer {
       virtual void beginLuminosityBlock(edm::LuminosityBlock&, edm::EventSetup const&);
       virtual void endLuminosityBlock(edm::LuminosityBlock&, edm::EventSetup const&);
 
-
-
       TriggerTowerGeometry g;
 
       //Define the input tags
       edm::InputTag towersTag_;
+
+      edm::EDGetToken m_towerToken;
 
       double mhtThreshold_;
       double htThreshold_;
