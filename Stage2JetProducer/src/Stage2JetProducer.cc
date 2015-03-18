@@ -27,10 +27,13 @@ Stage2JetProducer::Stage2JetProducer(const edm::ParameterSet& iConfig) {
   //produces<double>("l1Stage2Ht");
 
   //Get the configs
-  towersTag_ = iConfig.getParameter<edm::InputTag>("towerInput");
+  //  towersTag_ = iConfig.getParameter<edm::InputTag>("towerInput");
   mhtThreshold_ = iConfig.getParameter<double>("mhtThreshold");
   htThreshold_ = iConfig.getParameter<double>("htThreshold");
-  jetEtaCut_ = iConfig.getParameter<double>("jetEtaCut");
+  jetEtaCut_ = iConfig.getParameter<int>("jetEtaCut");
+
+  towersTag_ = iConfig.getParameter<edm::InputTag>("towerToken");
+  m_towerToken = consumes<l1t::CaloTowerBxCollection>(towersTag_);
 
 }
 
@@ -41,40 +44,54 @@ Stage2JetProducer::~Stage2JetProducer() {
 // ------------ method called to produce the data  ------------
 void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
 
-  //Get the trigger towers and put them in an array
-  edm::Handle<l1slhc::L1CaloTowerCollection> triggerTowers;
-  iEvent.getByLabel(towersTag_, triggerTowers);
+  // //Get the trigger towers and put them in an array
+  // edm::Handle<l1slhc::L1CaloTowerCollection> triggerTowers;
+  // iEvent.getByLabel(towersTag_, triggerTowers);
 
   //Maybe make these configurable but not for now
+  double jetLSB=1.;
+
   //int jetsize=5;
   //int vetowindowsize=4;
   int seedthresh1=0;
   int seedthresh2=0;
   int nstrips=4;
 
-
   //Make these incase you want them in the future
   double ET=0.;
   double met_x=0.;
   double met_y=0.;
 
-  std::vector< std::vector<int> > input(56, std::vector<int>(72, 0)); //this is just a container for the (E+H) per tower
+  std::vector< std::vector<int> > input(56, std::vector<int>(72, 0)); 
+  //this is just a container for the (E+H) per tower
 
   //std::auto_ptr<std::vector<reco::LeafCandidate> > uncalibL1Jets(new
   //    std::vector<reco::LeafCandidate>());
   std::vector<L1JetParticle> uncalibL1Jets;
   std::vector<L1JetParticle> uncalibChunkyJets;
 
-  for(auto j=triggerTowers->begin(); j!=triggerTowers->end(); j++) {
+  edm::Handle< BXVector<l1t::CaloTower> > towers;
+  iEvent.getByToken(m_towerToken,towers);
 
-    if ( abs((*j).iEta()) > 28 ) { continue; } //i.e. |eta| < 3 only
+  for ( int ibx=towers->getFirstBX(); ibx<=towers->getLastBX(); ++ibx) {
+      //  for(auto j=triggerTowers->begin(); j!=triggerTowers->end(); j++) {
+     for ( auto j = towers->begin(ibx); j !=towers->end(ibx); ++j ) {
 
-    input[g.new_iEta((*j).iEta())][g.new_iPhi((*j).iPhi())] = ((*j).E() + (*j).H());
-    ET += (*j).E()+(*j).H();
-    met_x -= cos(g.phi((*j).iPhi())) * ((*j).E() + (*j).H());
-    met_y -= sin(g.phi((*j).iPhi())) * ((*j).E() + (*j).H());
+       if ( abs((*j).hwEta()) > 28 ) { continue; } //i.e. |eta| < 3 only
+
+       input[g.new_iEta((*j).hwEta())][g.new_iPhi((*j).hwPhi())] = ((*j).hwPt());
+
+       ET += (*j).hwPt();
+       met_x -= cos(g.phi((*j).hwPhi())) * ((*j).hwPt());
+       met_y -= sin(g.phi((*j).hwPhi())) * ((*j).hwPt());
+       
+       //if (ET==0) continue;
+    //    if (nj>=nMax) break;
     //so now ttArray is on the scale ieta 0-56, iphi 0-71
-  }
+     }
+  } // end loop on ibx
+
+  // std::cout << "Found " << nj << " towers" << std::endl;
 
   //Put in Mask for chunky donut
   std::vector<std::vector<int> > mask, mask_donut;
@@ -125,12 +142,18 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
           unsigned int dl = l-j+phisizedonut;
 
 
-          //	       std::cout << dk << std::endl;
+	  //std::cout << dk << std::endl;
           //	       std::cout << dl << std::endl;
           //make a co-ordinate transform at the phi boundary
           int newl;
-          if(l < 0) { newl = l+72; } 
-          else if (l > 71) { newl = l-72; } 
+          if(l <= 0) { 
+	    //std::cout << "phi < 0 :: " << l << std::endl;
+	    newl = l+72; 
+	  } 
+          else if (l > 72) { 
+	    newl = l-72; 
+	    //std::cout << "phi > 71 :: " << l << std::endl;
+	  } 
           else { newl = l; }
 
           //if (l != j && k != i)
@@ -218,10 +241,21 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
         jetFirMomEta = jetFirMomEta/(totalenergy);
         jetFirMomPhi = jetFirMomPhi/(totalenergy);
         //this is with PUS:
-        if(totalenergy > 0.0 && fabs(g.eta(g.old_iEta(i)))<jetEtaCut_  ) {
+	
+	// std::cout << " hwEta = " << i << std::endl;
+	// std::cout << " old_iEta= " << g.old_iEta(i) << std::endl;
+	// std::cout << " physical eta = " << g.eta(g.old_iEta(i)) << std::endl;
+
+	//	if(totalenergy > 0.0 && fabs(g.eta(g.old_iEta(i)))<jetEtaCut_  ) {
+	if(totalenergy > 0.0 && abs(g.old_iEta(i))<=jetEtaCut_  ) {
+
+	  if (fabs(g.eta(g.old_iEta(i)))>3.) {
+	    std::cout << "Physical Jet eta is outside Range!!!" << std::endl;
+	  }
+	  
           //L1_jJets.push_back(jJet(totalenergy, g.old_iEta(i), g.old_iPhi(j), localsums,localmax,jetFirMomEta,jetFirMomPhi,jetSecMomEta,jetSecMomPhi,jetCovEtaPhi, areas, outerstrips,jetTower,jetarea));
 
-          math::PtEtaPhiMLorentzVector tempJet(0.5*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
+          math::PtEtaPhiMLorentzVector tempJet(jetLSB*totalenergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
           uncalibL1Jets.push_back(L1JetParticle(tempJet, L1JetParticle::JetType::kCentral,0));
           jetareas.push_back(jetarea);
           seedValue.push_back(localsums[0]);
@@ -235,7 +269,7 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
               jetarea*(outerstrips[1].first+outerstrips[2].first)/(outerstrips[1].second+outerstrips[2].second);
 
             if(chunkyEnergy>0.0){
-              math::PtEtaPhiMLorentzVector tempJet2(0.5*chunkyEnergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
+              math::PtEtaPhiMLorentzVector tempJet2(jetLSB*chunkyEnergy, g.eta(g.old_iEta(i)), g.phi(g.old_iPhi(j)),0.);
               uncalibChunkyJets.push_back(L1JetParticle(tempJet2, L1JetParticle::JetType::kCentral,0));
 
             }
@@ -318,7 +352,11 @@ void Stage2JetProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
   //Sort the calibrated jets
   std::sort(l1Jets.begin(), l1Jets.end(), sortbypt);  
-
+  /*
+  for ( auto j = l1Jets.begin(); j !=l1Jets.end(); ++j ) { 
+    std::cout << "NoPus Calib pt= " << l1Jets.at(j).pt() << std::endl;
+  }
+  */
   //Put into the event
   std::auto_ptr<std::vector<L1JetParticle> > l1JetsPtr( new std::vector<L1JetParticle>() );
   std::auto_ptr<std::vector<L1JetParticle> > uncalibL1JetsPtr( new std::vector<L1JetParticle>() );
@@ -427,6 +465,7 @@ double Stage2JetProducer::getMedian(const std::vector<L1JetParticle>& jets, cons
 double Stage2JetProducer::calculateHT(const std::vector<L1JetParticle>& jets, const double& thresh) {
   double ht=0.0;
   for(unsigned int i=0; i< jets.size(); i++) {
+    if ( fabs(jets[i].eta())>3.) continue;
     if (jets[i].pt() > thresh)  ht += jets[i].pt();
   }
   return ht;
@@ -438,6 +477,8 @@ L1EtMissParticle Stage2JetProducer::calculateMHT(const std::vector<L1JetParticle
   double mht_y=0.0;
   double ht=0.0;
   for(unsigned int i=0; i< jets.size(); i++) {
+
+    if ( fabs(jets[i].eta())>3.) continue;
 
     if (jets[i].pt() > htThresh)  ht += jets[i].pt();
     if (jets[i].pt() > mhtThresh)
